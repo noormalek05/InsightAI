@@ -432,82 +432,33 @@ if page == "📊 Dashboard":
 
     col1, col2, col3, col4 = st.columns(4)
 
-    with col1:
+    st.subheader("📊 Business Overview")
 
-        st.markdown(
-            f"""
-            <div class="kpi-card">
+col1, col2, col3, col4 = st.columns(4)
 
-                <div class="kpi-title">
-                    TOTAL REVENUE
-                </div>
+with col1:
+    st.metric(
+        label="💰 Total Revenue",
+        value=f"₹{analysis_results['kpis']['total_revenue']:,.0f}"
+    )
 
-                <div class="kpi-value">
-                    ₹{analysis_results['kpis']['total_revenue']:,.0f}
-                </div>
+with col2:
+    st.metric(
+        label="📦 Total Units Sold",
+        value=f"{analysis_results['kpis']['total_units']:,}"
+    )
 
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+with col3:
+    st.metric(
+        label="⭐ Customer Rating",
+        value=f"{analysis_results['kpis']['average_rating']:.2f}/5"
+    )
 
-    with col2:
-
-        st.markdown(
-            f"""
-            <div class="kpi-card">
-
-                <div class="kpi-title">
-                    UNITS SOLD
-                </div>
-
-                <div class="kpi-value">
-                    {analysis_results['kpis']['total_units']:,}
-                </div>
-
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with col3:
-
-        st.markdown(
-            f"""
-            <div class="kpi-card">
-
-                <div class="kpi-title">
-                    CUSTOMER RATING
-                </div>
-
-                <div class="kpi-value">
-                    {analysis_results['kpis']['average_rating']:.2f}/5
-                </div>
-
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with col4:
-
-        st.markdown(
-            f"""
-            <div class="kpi-card">
-
-                <div class="kpi-title">
-                    MARKETING SPEND
-                </div>
-
-                <div class="kpi-value">
-                    ₹{analysis_results['kpis']['total_marketing_spend']:,.0f}
-                </div>
-
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
+with col4:
+    st.metric(
+        label="📢 Marketing Spend",
+        value=f"₹{analysis_results['kpis']['total_marketing_spend']:,.0f}"
+    )
     st.write("")
 
     # --------------------------------------------------
