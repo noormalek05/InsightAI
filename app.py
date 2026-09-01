@@ -434,31 +434,31 @@ if page == "📊 Dashboard":
 
     st.subheader("📊 Business Overview")
 
-col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4 = st.columns(4)
 
-with col1:
-    st.metric(
-        label="💰 Total Revenue",
-        value=f"₹{analysis_results['kpis']['total_revenue']:,.0f}"
-    )
+    with col1:
+        st.metric(
+            label="💰 Total Revenue",
+            value=f"₹{analysis_results['kpis']['total_revenue']:,.0f}"
+        )
 
-with col2:
-    st.metric(
-        label="📦 Total Units Sold",
-        value=f"{analysis_results['kpis']['total_units']:,}"
-    )
+    with col2:
+        st.metric(
+            label="📦 Total Units Sold",
+            value=f"{analysis_results['kpis']['total_units']:,}"
+        )
 
-with col3:
-    st.metric(
-        label="⭐ Customer Rating",
-        value=f"{analysis_results['kpis']['average_rating']:.2f}/5"
-    )
+    with col3:
+        st.metric(
+            label="⭐ Customer Rating",
+            value=f"{analysis_results['kpis']['average_rating']:.2f}/5"
+        )
 
-with col4:
-    st.metric(
-        label="📢 Marketing Spend",
-        value=f"₹{analysis_results['kpis']['total_marketing_spend']:,.0f}"
-    )
+    with col4:
+        st.metric(
+            label="📢 Marketing Spend",
+            value=f"₹{analysis_results['kpis']['total_marketing_spend']:,.0f}"
+        )
     st.write("")
 
     # --------------------------------------------------
