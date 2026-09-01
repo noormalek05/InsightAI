@@ -1,78 +1,190 @@
 import streamlit as st
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
+import sys
 import os
+import pandas as pd
 
 
-# ==========================================================
+# ==================================================
+# FIND SRC FOLDER
+# ==================================================
+
+sys.path.append(
+    os.path.join(
+        os.path.dirname(__file__),
+        "src"
+    )
+)
+
+
+# ==================================================
+# IMPORT PROJECT MODULES
+# ==================================================
+
+from data_analysis import run_analysis
+from ml_model import train_sales_model, predict_sales
+from insights import generate_business_insights
+from llm_engine import ask_llm
+
+
+# ==================================================
 # PAGE CONFIGURATION
-# ==========================================================
+# ==================================================
 
 st.set_page_config(
     page_title="InsightAI",
     page_icon="🧠",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 
-# ==========================================================
-# CUSTOM CSS
-# ==========================================================
+# ==================================================
+# CUSTOM DESIGN
+# ==================================================
 
 st.markdown(
     """
     <style>
 
     .stApp {
-        background-color: #0E1626;
-        color: white;
+        background-color: #0b1120;
+        color: #e5e7eb;
     }
 
-    h1, h2, h3 {
-        color: #F5F5F5;
+    section[data-testid="stSidebar"] {
+        background-color: #111827;
+        border-right: 1px solid #1f2937;
     }
 
     .main-title {
-        font-size: 52px;
+        font-size: 46px;
         font-weight: 800;
-        color: white;
+        color: #f9fafb;
         margin-bottom: 0px;
     }
 
-    .subtitle {
-        font-size: 18px;
-        color: #9FB3C8;
-        margin-bottom: 40px;
+    .main-subtitle {
+        font-size: 17px;
+        color: #94a3b8;
+        margin-top: 4px;
+        margin-bottom: 30px;
     }
 
     .section-title {
-        font-size: 30px;
+        font-size: 26px;
         font-weight: 700;
-        color: white;
-        margin-top: 30px;
-        margin-bottom: 20px;
+        color: #f9fafb;
+        margin-top: 25px;
+        margin-bottom: 15px;
     }
 
-    .highlight-card {
-        background-color: #223A59;
+    .kpi-card {
+        background: linear-gradient(
+            135deg,
+            #111827,
+            #172554
+        );
+
+        border: 1px solid #1e3a8a;
+        border-radius: 16px;
+        padding: 20px;
+        min-height: 125px;
+
+        box-shadow:
+            0 8px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    .kpi-title {
+        color: #94a3b8;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .kpi-value {
+        color: #f9fafb;
+        font-size: 28px;
+        font-weight: 800;
+        margin-top: 8px;
+    }
+
+    .ai-card {
+        background:
+            linear-gradient(
+                135deg,
+                #111827,
+                #172554
+            );
+
+        border: 1px solid #2563eb;
+        border-radius: 18px;
         padding: 25px;
-        border-radius: 15px;
-        border: 1px solid #315A8F;
-        min-height: 150px;
-    }
-
-    .highlight-title {
-        color: #75B6F5;
-        font-size: 17px;
-        font-weight: bold;
-    }
-
-    .highlight-value {
-        color: white;
-        font-size: 25px;
-        font-weight: bold;
         margin-top: 15px;
+
+        box-shadow:
+            0 10px 30px rgba(37, 99, 235, 0.15);
+    }
+
+    .ai-title {
+        font-size: 24px;
+        font-weight: 750;
+        color: #f9fafb;
+    }
+
+    .ai-subtitle {
+        color: #94a3b8;
+        font-size: 14px;
+        margin-top: 5px;
+    }
+
+    .prediction-card {
+        background:
+            linear-gradient(
+                135deg,
+                #111827,
+                #1e1b4b
+            );
+
+        border: 1px solid #4f46e5;
+        border-radius: 18px;
+        padding: 28px;
+        text-align: center;
+        margin-top: 20px;
+    }
+
+    .prediction-label {
+        color: #a5b4fc;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .prediction-value {
+        color: #f9fafb;
+        font-size: 42px;
+        font-weight: 800;
+        margin-top: 8px;
+    }
+
+    .stButton > button {
+        border-radius: 10px;
+        border: 1px solid #2563eb;
+        background-color: #2563eb;
+        color: white;
+        font-weight: 650;
+        padding: 10px 20px;
+    }
+
+    .stButton > button:hover {
+        background-color: #1d4ed8;
+        border-color: #1d4ed8;
+    }
+
+    .footer {
+        text-align: center;
+        color: #64748b;
+        font-size: 13px;
+        margin-top: 50px;
+        padding-top: 20px;
+        border-top: 1px solid #1f2937;
     }
 
     </style>
@@ -81,76 +193,35 @@ st.markdown(
 )
 
 
-# ==========================================================
-# HELPER FUNCTIONS
-# ==========================================================
-
-def find_column(columns, possible_names):
-    """
-    Find a matching column from possible names.
-    """
-
-    for column in columns:
-        column_lower = column.lower().replace(" ", "").replace("_", "")
-
-        for name in possible_names:
-            name_lower = name.lower().replace(" ", "").replace("_", "")
-
-            if name_lower in column_lower:
-                return column
-
-    return None
-
-
-def format_currency(value):
-    """
-    Format a number as Indian Rupees.
-    """
-
-    try:
-        return f"₹{value:,.0f}"
-    except:
-        return str(value)
-
-
-# ==========================================================
-# LOAD DEFAULT DATA
-# ==========================================================
-
-def load_default_data():
-
-    possible_paths = [
-        "data/business_sales.csv",
-        "data/sales.csv",
-        "data/business_data.csv",
-        "business_sales.csv",
-        "sales.csv"
-    ]
-
-    for path in possible_paths:
-
-        if os.path.exists(path):
-
-            try:
-                return pd.read_csv(path)
-
-            except:
-                pass
-
-    return None
-
-
-# ==========================================================
+# ==================================================
 # SIDEBAR
-# ==========================================================
+# ==================================================
 
 with st.sidebar:
 
-    st.title("🧠 InsightAI")
+    st.markdown(
+        """
+        <div style="
+            font-size:28px;
+            font-weight:800;
+            color:#f9fafb;
+            margin-bottom:4px;
+        ">
+        🧠 InsightAI
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-    st.write("AI-Powered Business Intelligence")
+    st.caption(
+        "AI-Powered Business Intelligence"
+    )
 
     st.divider()
+
+    # --------------------------------------------------
+    # CSV UPLOAD
+    # --------------------------------------------------
 
     st.subheader("📂 Data Source")
 
@@ -160,805 +231,904 @@ with st.sidebar:
         key="business_csv"
     )
 
+    if uploaded_file is not None:
+
+        st.success(
+            "Custom dataset loaded"
+        )
+
+        try:
+
+            preview_data = pd.read_csv(
+                uploaded_file
+            )
+
+            required_columns = [
+                "Date",
+                "Product",
+                "Region",
+                "Units_Sold",
+                "Unit_Price",
+                "Marketing_Spend",
+                "Customer_Rating"
+            ]
+
+            missing_columns = [
+                column
+                for column in required_columns
+                if column not in preview_data.columns
+            ]
+
+            if missing_columns:
+
+                st.error(
+                    "❌ Invalid CSV"
+                )
+
+                st.write(
+                    "Missing columns:"
+                )
+
+                for column in missing_columns:
+
+                    st.write(
+                        f"- {column}"
+                    )
+
+            else:
+
+                st.success(
+                    "✅ Dataset validated successfully"
+                )
+
+        except Exception:
+
+            st.error(
+                "❌ Could not read this CSV file."
+            )
+
+    else:
+
+        st.caption(
+            "Using default sales dataset"
+        )
+
     st.divider()
 
-    st.info(
-        """
-        Upload a business or sales dataset in CSV format.
+    # --------------------------------------------------
+    # NAVIGATION
+    # --------------------------------------------------
 
-        InsightAI will automatically analyze the available columns.
+    page = st.radio(
+        "NAVIGATION",
+        [
+            "📊 Dashboard",
+            "🔮 Sales Prediction",
+            "🤖 Ask InsightAI"
+        ]
+    )
+
+    st.divider()
+
+    st.markdown(
+        """
+        **Technology**
+
+        🐍 Python  
+        🐼 Pandas  
+        📈 Scikit-learn  
+        🎨 Streamlit  
+        🧠 Llama 3.2 3B
         """
     )
 
+    st.divider()
 
-# ==========================================================
-# SELECT DATA
-# ==========================================================
+    st.caption(
+        "InsightAI • Local AI Business Analyst"
+    )
 
-default_data = load_default_data()
+
+# ==================================================
+# LOAD BUSINESS DATA
+# ==================================================
+
+@st.cache_data
+def load_business_data(file_bytes=None):
+
+    if file_bytes is None:
+
+        return run_analysis()
+
+    else:
+
+        uploaded_data = pd.read_csv(
+            pd.io.common.BytesIO(file_bytes)
+        )
+
+        return run_analysis(
+            uploaded_data
+        )
+
+
+# ==================================================
+# SELECT DATA SOURCE
+# ==================================================
 
 if uploaded_file is not None:
 
     try:
 
-        df = pd.read_csv(uploaded_file)
+        analysis_results = load_business_data(
+            uploaded_file.getvalue()
+        )
 
-        st.success("✅ Custom dataset loaded successfully!")
-
-        data_source = "Uploaded Dataset"
-
-    except Exception as e:
-
-        st.error("❌ Unable to read the uploaded CSV file.")
-
-        st.stop()
-
-else:
-
-    if default_data is not None:
-
-        df = default_data
-
-        data_source = "Default Dataset"
-
-    else:
+    except Exception:
 
         st.warning(
-            "⚠️ No default dataset found. Please upload a CSV file from the sidebar."
+            "⚠️ Unable to analyze the uploaded file. "
+            "Using the default sales dataset instead."
         )
 
-        st.stop()
+        analysis_results = load_business_data()
+
+else:
+
+    analysis_results = load_business_data()
 
 
-# ==========================================================
-# CLEAN COLUMN NAMES
-# ==========================================================
+# ==================================================
+# MACHINE LEARNING MODEL
+# ==================================================
 
-df.columns = df.columns.astype(str).str.strip()
+@st.cache_resource
+def load_ml_model(data):
 
-
-# ==========================================================
-# DETECT IMPORTANT COLUMNS
-# ==========================================================
-
-columns = df.columns.tolist()
+    return train_sales_model(data)
 
 
-product_column = find_column(
-    columns,
-    [
-        "product",
-        "productname",
-        "item",
-        "itemname"
-    ]
+ml_results = load_ml_model(
+    analysis_results["data"]
 )
 
 
-region_column = find_column(
-    columns,
-    [
-        "region",
-        "location",
-        "area",
-        "state",
-        "city"
-    ]
+# ==================================================
+# BUSINESS INSIGHTS
+# ==================================================
+
+business_insights = generate_business_insights(
+    analysis_results
 )
 
 
-units_column = find_column(
-    columns,
-    [
-        "unitssold",
-        "quantity",
-        "qty",
-        "units",
-        "salesquantity"
-    ]
-)
+# ==================================================
+# DASHBOARD
+# ==================================================
 
+if page == "📊 Dashboard":
 
-price_column = find_column(
-    columns,
-    [
-        "unitprice",
-        "price",
-        "sellingprice",
-        "cost"
-    ]
-)
+    st.markdown(
+        '<div class="main-title">🧠 InsightAI</div>',
+        unsafe_allow_html=True
+    )
 
+    st.markdown(
+        '<div class="main-subtitle">'
+        'AI-Powered Business Intelligence Dashboard'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
-revenue_column = find_column(
-    columns,
-    [
-        "revenue",
-        "salesamount",
-        "totalrevenue",
-        "amount",
-        "sales"
-    ]
-)
+    # --------------------------------------------------
+    # BUSINESS OVERVIEW
+    # --------------------------------------------------
 
+    st.markdown(
+        '<div class="section-title">'
+        '📊 Business Overview'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
-marketing_column = find_column(
-    columns,
-    [
-        "marketingspend",
-        "marketing",
-        "advertising",
-        "adspend",
-        "promotioncost"
-    ]
-)
+    col1, col2, col3, col4 = st.columns(4)
 
+    st.subheader("📊 Business Overview")
 
-rating_column = find_column(
-    columns,
-    [
-        "customerrating",
-        "rating",
-        "reviewscore",
-        "score"
-    ]
-)
+    col1, col2, col3, col4 = st.columns(4)
 
-
-# ==========================================================
-# CONVERT NUMERIC COLUMNS
-# ==========================================================
-
-numeric_columns = df.select_dtypes(include=["number"]).columns.tolist()
-
-
-# Convert detected columns safely
-
-for column in [
-    units_column,
-    price_column,
-    revenue_column,
-    marketing_column,
-    rating_column
-]:
-
-    if column is not None:
-
-        df[column] = pd.to_numeric(
-            df[column],
-            errors="coerce"
+    with col1:
+        st.metric(
+            label="💰 Total Revenue",
+            value=f"₹{analysis_results['kpis']['total_revenue']:,.0f}"
         )
 
-
-# ==========================================================
-# CALCULATE REVENUE
-# ==========================================================
-
-if revenue_column is not None:
-
-    df["Calculated_Revenue"] = df[revenue_column]
-
-elif units_column is not None and price_column is not None:
-
-    df["Calculated_Revenue"] = (
-        df[units_column] *
-        df[price_column]
-    )
-
-else:
-
-    df["Calculated_Revenue"] = 0
-
-
-# ==========================================================
-# CALCULATE KPIs
-# ==========================================================
-
-total_revenue = df["Calculated_Revenue"].sum()
-
-
-if units_column is not None:
-
-    total_units = df[units_column].sum()
-
-else:
-
-    total_units = len(df)
-
-
-if rating_column is not None:
-
-    average_rating = df[rating_column].mean()
-
-else:
-
-    average_rating = 0
-
-
-if marketing_column is not None:
-
-    total_marketing = df[marketing_column].sum()
-
-else:
-
-    total_marketing = 0
-
-
-# ==========================================================
-# MAIN HEADER
-# ==========================================================
-
-st.markdown(
-    """
-    <div class="main-title">
-        🧠 InsightAI
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-
-st.markdown(
-    """
-    <div class="subtitle">
-        AI-Powered Business Intelligence Dashboard
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-
-st.caption(f"📊 Currently analyzing: **{data_source}**")
-
-
-# ==========================================================
-# DATASET INFORMATION
-# ==========================================================
-
-with st.expander("📋 View Dataset Information"):
-
-    col1, col2, col3 = st.columns(3)
-
-    col1.metric("Rows", df.shape[0])
-
-    col2.metric("Columns", df.shape[1])
-
-    col3.metric("Data Source", data_source)
-
-    st.write("### Available Columns")
-
-    st.write(", ".join(df.columns.tolist()))
-
-    st.write("### Data Preview")
-
-    st.dataframe(
-        df.head(10),
-        use_container_width=True
-    )
-
-
-# ==========================================================
-# BUSINESS OVERVIEW
-# ==========================================================
-
-st.markdown(
-    '<div class="section-title">📊 Business Overview</div>',
-    unsafe_allow_html=True
-)
-
-
-col1, col2, col3, col4 = st.columns(4)
-
-
-with col1:
-
-    st.metric(
-        "💰 Total Revenue",
-        format_currency(total_revenue)
-    )
-
-
-with col2:
-
-    st.metric(
-        "📦 Total Units Sold",
-        f"{total_units:,.0f}"
-    )
-
-
-with col3:
-
-    if average_rating > 0:
-
-        rating_display = f"{average_rating:.2f}/5"
-
-    else:
-
-        rating_display = "N/A"
-
-    st.metric(
-        "⭐ Customer Rating",
-        rating_display
-    )
-
-
-with col4:
-
-    st.metric(
-        "📢 Marketing Spend",
-        format_currency(total_marketing)
-    )
-
-
-# ==========================================================
-# BUSINESS PERFORMANCE HIGHLIGHTS
-# ==========================================================
-
-st.markdown(
-    '<div class="section-title">🏆 Business Performance Highlights</div>',
-    unsafe_allow_html=True
-)
-
-
-highlight_col1, highlight_col2, highlight_col3 = st.columns(3)
-
-
-# ----------------------------------------------------------
-# TOP PRODUCT
-# ----------------------------------------------------------
-
-top_product = "N/A"
-top_product_revenue = 0
-
-
-if product_column is not None:
-
-    product_analysis = (
-        df.groupby(product_column)["Calculated_Revenue"]
-        .sum()
-        .sort_values(ascending=False)
-    )
-
-    if len(product_analysis) > 0:
-
-        top_product = product_analysis.index[0]
-
-        top_product_revenue = product_analysis.iloc[0]
-
-
-with highlight_col1:
-
-    st.markdown(
-        f"""
-        <div class="highlight-card">
-
-        <div class="highlight-title">
-        🏆 Top Product
-        </div>
-
-        <div class="highlight-value">
-        {top_product}
-        </div>
-
-        <br>
-
-        Revenue: {format_currency(top_product_revenue)}
-
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-
-# ----------------------------------------------------------
-# STRONGEST REGION
-# ----------------------------------------------------------
-
-strongest_region = "N/A"
-strongest_region_revenue = 0
-
-
-if region_column is not None:
-
-    region_analysis = (
-        df.groupby(region_column)["Calculated_Revenue"]
-        .sum()
-        .sort_values(ascending=False)
-    )
-
-    if len(region_analysis) > 0:
-
-        strongest_region = region_analysis.index[0]
-
-        strongest_region_revenue = region_analysis.iloc[0]
-
-
-with highlight_col2:
-
-    st.markdown(
-        f"""
-        <div class="highlight-card">
-
-        <div class="highlight-title">
-        🌍 Strongest Region
-        </div>
-
-        <div class="highlight-value">
-        {strongest_region}
-        </div>
-
-        <br>
-
-        Revenue: {format_currency(strongest_region_revenue)}
-
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-
-# ----------------------------------------------------------
-# MARKETING ROI
-# ----------------------------------------------------------
-
-best_roi_product = "N/A"
-best_roi = 0
-
-
-if (
-    product_column is not None
-    and marketing_column is not None
-):
-
-    roi_data = df.copy()
-
-    roi_group = roi_data.groupby(product_column).agg(
-        Revenue=("Calculated_Revenue", "sum"),
-        Marketing=(marketing_column, "sum")
-    )
-
-    roi_group["ROI"] = (
-        roi_group["Revenue"] /
-        roi_group["Marketing"].replace(0, 1)
-    )
-
-    roi_group = roi_group.sort_values(
-        "ROI",
-        ascending=False
-    )
-
-    if len(roi_group) > 0:
-
-        best_roi_product = roi_group.index[0]
-
-        best_roi = roi_group.iloc[0]["ROI"]
-
-
-with highlight_col3:
-
-    st.markdown(
-        f"""
-        <div class="highlight-card">
-
-        <div class="highlight-title">
-        📢 Best Marketing ROI
-        </div>
-
-        <div class="highlight-value">
-        {best_roi_product}
-        </div>
-
-        <br>
-
-        ROI: {best_roi:.2f}
-
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-
-# ==========================================================
-# PRODUCT PERFORMANCE
-# ==========================================================
-
-st.markdown(
-    '<div class="section-title">💼 Product Performance</div>',
-    unsafe_allow_html=True
-)
-
-
-if product_column is not None:
-
-    chart_col1, chart_col2 = st.columns(2)
-
-
-    # ------------------------------------------------------
-    # REVENUE BY PRODUCT
-    # ------------------------------------------------------
+    with col2:
+        st.metric(
+            label="📦 Total Units Sold",
+            value=f"{analysis_results['kpis']['total_units']:,}"
+        )
+
+    with col3:
+        st.metric(
+            label="⭐ Customer Rating",
+            value=f"{analysis_results['kpis']['average_rating']:.2f}/5"
+        )
+
+    with col4:
+        st.metric(
+            label="📢 Marketing Spend",
+            value=f"₹{analysis_results['kpis']['total_marketing_spend']:,.0f}"
+        )
+    st.write("")
+
+    # --------------------------------------------------
+    # TOP BUSINESS PERFORMERS
+    # --------------------------------------------------
 
     product_revenue = (
-        df.groupby(product_column)["Calculated_Revenue"]
-        .sum()
-        .reset_index()
+        analysis_results["products"]["revenue"]
     )
-
-
-    with chart_col1:
-
-        st.subheader("💰 Revenue by Product")
-
-        fig_revenue = px.bar(
-            product_revenue,
-            x=product_column,
-            y="Calculated_Revenue",
-            title="Revenue by Product"
-        )
-
-        fig_revenue.update_layout(
-            template="plotly_dark",
-            paper_bgcolor="#0E1626",
-            plot_bgcolor="#0E1626"
-        )
-
-        st.plotly_chart(
-            fig_revenue,
-            use_container_width=True
-        )
-
-
-    # ------------------------------------------------------
-    # UNITS SOLD BY PRODUCT
-    # ------------------------------------------------------
-
-    if units_column is not None:
-
-        product_units = (
-            df.groupby(product_column)[units_column]
-            .sum()
-            .reset_index()
-        )
-
-
-        with chart_col2:
-
-            st.subheader("📦 Units Sold by Product")
-
-            fig_units = px.bar(
-                product_units,
-                x=product_column,
-                y=units_column,
-                title="Units Sold by Product"
-            )
-
-            fig_units.update_layout(
-                template="plotly_dark",
-                paper_bgcolor="#0E1626",
-                plot_bgcolor="#0E1626"
-            )
-
-            st.plotly_chart(
-                fig_units,
-                use_container_width=True
-            )
-
-else:
-
-    st.info(
-        "ℹ️ No product-related column was detected in this dataset."
-    )
-
-
-# ==========================================================
-# REGION PERFORMANCE
-# ==========================================================
-
-if region_column is not None:
-
-    st.markdown(
-        '<div class="section-title">🌍 Regional Performance</div>',
-        unsafe_allow_html=True
-    )
-
 
     region_revenue = (
-        df.groupby(region_column)["Calculated_Revenue"]
-        .sum()
-        .reset_index()
+        analysis_results["regions"]["revenue"]
     )
 
-
-    fig_region = px.pie(
-        region_revenue,
-        names=region_column,
-        values="Calculated_Revenue",
-        title="Revenue Distribution by Region"
+    marketing_roi = (
+        analysis_results["marketing"]["roi"]
     )
 
-
-    fig_region.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="#0E1626"
+    top_product = (
+        product_revenue.idxmax()
     )
 
-
-    st.plotly_chart(
-        fig_region,
-        use_container_width=True
+    top_product_revenue = (
+        product_revenue.max()
     )
 
+    top_region = (
+        region_revenue.idxmax()
+    )
 
-# ==========================================================
-# MARKETING ANALYSIS
-# ==========================================================
+    top_region_revenue = (
+        region_revenue.max()
+    )
 
-if marketing_column is not None:
+    top_roi_product = (
+        marketing_roi.idxmax()
+    )
+
+    top_roi_value = (
+        marketing_roi.max()
+    )
 
     st.markdown(
-        '<div class="section-title">📢 Marketing Analysis</div>',
+        '<div class="section-title">'
+        '🏆 Business Performance Highlights'
+        '</div>',
         unsafe_allow_html=True
     )
 
+    highlight1, highlight2, highlight3 = st.columns(3)
 
-    if product_column is not None:
-
-        marketing_analysis = (
-            df.groupby(product_column)[marketing_column]
-            .sum()
-            .reset_index()
-        )
-
-
-        fig_marketing = px.bar(
-            marketing_analysis,
-            x=product_column,
-            y=marketing_column,
-            title="Marketing Spend by Product"
-        )
-
-
-        fig_marketing.update_layout(
-            template="plotly_dark",
-            paper_bgcolor="#0E1626",
-            plot_bgcolor="#0E1626"
-        )
-
-
-        st.plotly_chart(
-            fig_marketing,
-            use_container_width=True
-        )
-
-
-# ==========================================================
-# AI INSIGHTS
-# ==========================================================
-
-st.markdown(
-    '<div class="section-title">🤖 InsightAI Smart Analysis</div>',
-    unsafe_allow_html=True
-)
-
-
-insight_col1, insight_col2 = st.columns(2)
-
-
-with insight_col1:
-
-    st.subheader("📈 Key Business Insights")
-
-    if top_product != "N/A":
-
-        st.success(
-            f"🏆 **{top_product}** is currently the highest-performing product."
-        )
-
-
-    if strongest_region != "N/A":
+    with highlight1:
 
         st.info(
-            f"🌍 **{strongest_region}** is the strongest revenue-generating region."
+            f"""
+            🏆 **Top Product**
+
+            **{top_product}**
+
+            Revenue: **₹{top_product_revenue:,.0f}**
+            """
+        )
+
+    with highlight2:
+
+        st.info(
+            f"""
+            🌍 **Strongest Region**
+
+            **{top_region}**
+
+            Revenue: **₹{top_region_revenue:,.0f}**
+            """
+        )
+
+    with highlight3:
+
+        st.info(
+            f"""
+            📢 **Best Marketing ROI**
+
+            **{top_roi_product}**
+
+            ROI: **{top_roi_value:.2f}**
+            """
+        )
+
+    # --------------------------------------------------
+    # PRODUCT PERFORMANCE
+    # --------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">'
+        '🛍️ Product Performance'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.subheader(
+            "💰 Revenue by Product"
+        )
+
+        st.bar_chart(
+            product_revenue
+        )
+
+    with col2:
+
+        st.subheader(
+            "📦 Units Sold by Product"
+        )
+
+        st.bar_chart(
+            analysis_results["products"]["units"]
+        )
+
+    # --------------------------------------------------
+    # REGIONAL PERFORMANCE
+    # --------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">'
+        '🌍 Regional Performance'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.subheader(
+            "Revenue by Region"
+        )
+
+        st.bar_chart(
+            region_revenue
+        )
+
+    with col2:
+
+        st.subheader(
+            "Marketing ROI by Product"
+        )
+
+        st.bar_chart(
+            marketing_roi
+        )
+
+    # --------------------------------------------------
+    # MACHINE LEARNING PERFORMANCE
+    # --------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">'
+        '🤖 Machine Learning Performance'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    ml_col1, ml_col2 = st.columns(2)
+
+    with ml_col1:
+
+        st.metric(
+            "Mean Absolute Error",
+            f"{ml_results['mae']:.2f}"
+        )
+
+    with ml_col2:
+
+        st.metric(
+            "R² Score",
+            f"{ml_results['r2']:.2f}"
+        )
+
+    # --------------------------------------------------
+    # BUSINESS INSIGHTS
+    # --------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">'
+        '💡 AI Business Insights'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    for insight in business_insights:
+
+        st.info(
+            insight
         )
 
 
-    if average_rating > 0:
+# ==================================================
+# SALES PREDICTION
+# ==================================================
 
-        if average_rating >= 4:
+elif page == "🔮 Sales Prediction":
 
-            st.success(
-                "⭐ Customer satisfaction is strong based on the available ratings."
+    st.markdown(
+        '<div class="main-title">'
+        '🔮 Sales Scenario Simulator'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div class="main-subtitle">'
+        'Enter a business scenario and let the ML model estimate expected sales.'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div class="section-title">'
+        'Scenario Inputs'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    # --------------------------------------------------
+    # DYNAMIC PRODUCT AND REGION
+    # --------------------------------------------------
+
+    product_options = sorted(
+        analysis_results["data"]["Product"]
+        .dropna()
+        .unique()
+        .tolist()
+    )
+
+    region_options = sorted(
+        analysis_results["data"]["Region"]
+        .dropna()
+        .unique()
+        .tolist()
+    )
+
+    # --------------------------------------------------
+    # INPUTS
+    # --------------------------------------------------
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        product = st.selectbox(
+            "Product",
+            product_options
+        )
+
+        region = st.selectbox(
+            "Region",
+            region_options
+        )
+
+        average_price = int(
+            analysis_results["data"]["Unit_Price"].mean()
+        )
+
+        unit_price = st.number_input(
+            "Unit Price (₹)",
+            min_value=1,
+            value=max(average_price, 1),
+            step=1000
+        )
+
+    with col2:
+
+        average_marketing = int(
+            analysis_results["data"]["Marketing_Spend"].mean()
+        )
+
+        marketing_spend = st.number_input(
+            "Marketing Spend (₹)",
+            min_value=0,
+            value=max(average_marketing, 0),
+            step=1000
+        )
+
+        customer_rating = st.slider(
+            "Expected Customer Rating",
+            min_value=1.0,
+            max_value=5.0,
+            value=4.5,
+            step=0.1
+        )
+
+    st.write("")
+
+    # --------------------------------------------------
+    # PREDICT SALES
+    # --------------------------------------------------
+
+    if st.button(
+        "🔮 Predict Expected Sales",
+        use_container_width=True
+    ):
+
+        prediction = predict_sales(
+            ml_results,
+            product,
+            region,
+            unit_price,
+            marketing_spend,
+            customer_rating
+        )
+
+        # --------------------------------------------------
+        # SCENARIO CALCULATIONS
+        # --------------------------------------------------
+
+        predicted_revenue = (
+            prediction * unit_price
+        )
+
+        estimated_net_revenue = (
+            predicted_revenue
+            - marketing_spend
+        )
+
+        # --------------------------------------------------
+        # MAIN PREDICTION
+        # --------------------------------------------------
+
+        st.markdown(
+            f"""
+            <div class="prediction-card">
+
+                <div class="prediction-label">
+                    EXPECTED UNITS SOLD
+                </div>
+
+                <div class="prediction-value">
+                    {prediction:.2f}
+                </div>
+
+                <div style="
+                    color:#94a3b8;
+                    margin-top:8px;
+                ">
+                    Based on your selected business scenario
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        st.write("")
+
+        # --------------------------------------------------
+        # SCENARIO RESULTS
+        # --------------------------------------------------
+
+        st.subheader(
+            "📊 Scenario Results"
+        )
+
+        result1, result2, result3 = st.columns(3)
+
+        with result1:
+
+            st.metric(
+                "Expected Revenue",
+                f"₹{predicted_revenue:,.0f}"
             )
 
-        elif average_rating >= 3:
+        with result2:
 
-            st.warning(
-                "⭐ Customer ratings are moderate and could be improved."
+            st.metric(
+                "Marketing Spend",
+                f"₹{marketing_spend:,.0f}"
+            )
+
+        with result3:
+
+            st.metric(
+                "Revenue After Marketing",
+                f"₹{estimated_net_revenue:,.0f}"
+            )
+
+        st.write("")
+
+        # --------------------------------------------------
+        # BUSINESS INTERPRETATION
+        # --------------------------------------------------
+
+        st.subheader(
+            "💡 Scenario Outlook"
+        )
+
+        if estimated_net_revenue > 0:
+
+            st.success(
+                f"""
+                This scenario is expected to sell approximately
+                **{prediction:.2f} units**, generating around
+                **₹{predicted_revenue:,.0f} in revenue**.
+
+                After the planned marketing spend of
+                **₹{marketing_spend:,.0f}**, the estimated revenue
+                remaining is **₹{estimated_net_revenue:,.0f}**.
+                """
             )
 
         else:
 
-            st.error(
-                "⭐ Customer satisfaction requires attention."
+            st.warning(
+                f"""
+                The predicted revenue of **₹{predicted_revenue:,.0f}**
+                does not cover the planned marketing spend of
+                **₹{marketing_spend:,.0f}**.
+
+                Consider reviewing the pricing, marketing budget,
+                or selected product/region combination.
+                """
+            )
+
+        # --------------------------------------------------
+        # SCENARIO SUMMARY
+        # --------------------------------------------------
+
+        st.write("")
+
+        st.subheader(
+            "📋 Scenario Summary"
+        )
+
+        scenario = pd.DataFrame(
+            {
+                "Parameter": [
+                    "Product",
+                    "Region",
+                    "Unit Price",
+                    "Marketing Spend",
+                    "Customer Rating"
+                ],
+
+                "Selected Value": [
+                    product,
+                    region,
+                    f"₹{unit_price:,.0f}",
+                    f"₹{marketing_spend:,.0f}",
+                    f"{customer_rating:.1f}/5"
+                ]
+            }
+        )
+
+        st.dataframe(
+            scenario,
+            use_container_width=True,
+            hide_index=True
+        )
+
+
+# ==================================================
+# ASK INSIGHTAI
+# ==================================================
+
+elif page == "🤖 Ask InsightAI":
+
+    st.markdown(
+        '<div class="main-title">'
+        '🤖 Ask InsightAI'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div class="main-subtitle">'
+        'Ask questions about your business data and receive AI-generated analysis.'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    # --------------------------------------------------
+    # AI HEADER
+    # --------------------------------------------------
+
+    st.markdown(
+        """
+        <div class="ai-card">
+
+            <div class="ai-title">
+                🧠 AI Business Copilot
+            </div>
+
+            <div class="ai-subtitle">
+                Powered by your business data and local Llama 3.2 3B
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.write("")
+
+    # --------------------------------------------------
+    # EXAMPLE QUESTIONS
+    # --------------------------------------------------
+
+    st.caption(
+        "Try asking:"
+    )
+
+    example_questions = [
+        "Which product is performing best and why?",
+        "Which region generated the highest revenue?",
+        "Which product has the highest marketing ROI?",
+        "Should I increase marketing for Phone?"
+    ]
+
+    selected_question = st.selectbox(
+        "Example questions",
+        [
+            "Choose a question..."
+        ] + example_questions
+    )
+
+    # --------------------------------------------------
+    # USER QUESTION
+    # --------------------------------------------------
+
+    question = st.text_area(
+        "Your business question",
+        value=(
+            ""
+            if selected_question == "Choose a question..."
+            else selected_question
+        ),
+        height=100,
+        placeholder="Example: Which product should I focus on?"
+    )
+
+    # --------------------------------------------------
+    # ASK AI
+    # --------------------------------------------------
+
+    if st.button(
+        "✨ Analyze with InsightAI",
+        use_container_width=True
+    ):
+
+        if question.strip() == "":
+
+            st.warning(
+                "Please enter a business question."
+            )
+
+        else:
+
+            # --------------------------------------------------
+            # BUSINESS CONTEXT
+            # --------------------------------------------------
+
+            business_context = f"""
+
+            BUSINESS KPIs
+
+            Total Revenue:
+            ₹{analysis_results['kpis']['total_revenue']:,.0f}
+
+            Total Units Sold:
+            {analysis_results['kpis']['total_units']}
+
+            Average Customer Rating:
+            {analysis_results['kpis']['average_rating']:.2f}/5
+
+            Total Marketing Spend:
+            ₹{analysis_results['kpis']['total_marketing_spend']:,.0f}
+
+
+            REVENUE BY PRODUCT
+
+            {analysis_results['products']['revenue']}
+
+
+            UNITS SOLD BY PRODUCT
+
+            {analysis_results['products']['units']}
+
+
+            REVENUE BY REGION
+
+            {analysis_results['regions']['revenue']}
+
+
+            MARKETING ROI
+
+            {analysis_results['marketing']['roi']}
+
+
+            BUSINESS INSIGHTS
+
+            {business_insights}
+
+
+            MACHINE LEARNING
+
+            MAE:
+            {ml_results['mae']:.2f}
+
+            R²:
+            {ml_results['r2']:.2f}
+
+            """
+
+            # --------------------------------------------------
+            # AI PROCESSING
+            # --------------------------------------------------
+
+            with st.spinner(
+                "🧠 InsightAI is analyzing your business data..."
+            ):
+
+                answer = ask_llm(
+                    question,
+                    business_context
+                )
+
+            # --------------------------------------------------
+            # AI ANSWER
+            # --------------------------------------------------
+
+            st.markdown(
+                """
+                <div class="ai-card">
+
+                    <div class="ai-title">
+                        💡 InsightAI Analysis
+                    </div>
+
+                    <div class="ai-subtitle">
+                        AI-generated analysis based on your business data
+                    </div>
+
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            st.write("")
+
+            st.markdown(
+                answer
             )
 
 
-with insight_col2:
-
-    st.subheader("💡 Business Recommendations")
-
-    if marketing_column is not None and total_marketing > 0:
-
-        st.write(
-            "📢 Focus marketing investment on products that generate the highest revenue and ROI."
-        )
-
-
-    if strongest_region != "N/A":
-
-        st.write(
-            f"🌍 Consider expanding successful strategies from **{strongest_region}** into other regions."
-        )
-
-
-    if top_product != "N/A":
-
-        st.write(
-            f"🏆 Maintain inventory and promotional focus for **{top_product}**."
-        )
-
-
-# ==========================================================
-# DATA EXPLORER
-# ==========================================================
-
-st.markdown(
-    '<div class="section-title">🔍 Data Explorer</div>',
-    unsafe_allow_html=True
-)
-
-
-st.write(
-    "Explore the complete dataset currently being analyzed."
-)
-
-
-st.dataframe(
-    df,
-    use_container_width=True
-)
-
-
-# ==========================================================
-# DOWNLOAD ANALYZED DATA
-# ==========================================================
-
-csv = df.to_csv(index=False).encode("utf-8")
-
-
-st.download_button(
-    label="📥 Download Analyzed Dataset",
-    data=csv,
-    file_name="insightai_analyzed_data.csv",
-    mime="text/csv"
-)
-
-
-# ==========================================================
+# ==================================================
 # FOOTER
-# ==========================================================
-
-st.divider()
-
+# ==================================================
 
 st.markdown(
     """
-    <center>
+    <div class="footer">
 
-    🧠 <b>InsightAI</b><br>
+        InsightAI • AI-Powered Business Intelligence
 
-    AI-Powered Business Intelligence & Sales Analytics Platform
+        <br>
 
-    </center>
+        Python • Pandas • Scikit-learn • Streamlit • Llama 3.2 3B
+
+    </div>
     """,
     unsafe_allow_html=True
 )
