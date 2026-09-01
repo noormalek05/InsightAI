@@ -1,6 +1,10 @@
 # 🧠 InsightAI
 
-### AI-Powered Business Intelligence & Sales Analytics
+AI-Powered Business Intelligence & Sales Analytics Platform
+
+## 🚀 Live Application
+
+👉 **https://insightai-noormalek.streamlit.app**
 
 InsightAI is a business intelligence application that combines **Data Analysis, Machine Learning, and Local Generative AI** to help users understand business performance and make data-driven decisions.
 
